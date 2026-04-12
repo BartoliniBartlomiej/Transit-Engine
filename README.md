@@ -1,6 +1,6 @@
 # Railway Reservation System
 
-A C++/SQLite portfolio project focused on smart pointer usage, memory management, and clean object-oriented design.
+A C++/SQLite project focused on smart pointer usage, memory management, and clean object-oriented design.
 
 ---
 
