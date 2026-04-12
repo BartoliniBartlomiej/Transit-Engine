@@ -1,156 +1,141 @@
-# 🚂 Railway Reservation System — Dokumentacja projektu
+# Railway Reservation System
 
-> Projekt portfolio w C++/SQLite. Nacisk na smart pointery, zarządzanie pamięcią i relacje między obiektami.
-
----
-
-## Cel projektu
-
-Zbudować działające CLI do rezerwacji biletów kolejowych, które:
-- modeluje prawdziwe relacje między obiektami (ownership, sharing, obserwacja)
-- pokazuje świadome użycie `unique_ptr`, `shared_ptr`, `weak_ptr`
-- persystuje dane w SQLite
-- ma czytelną architekturę nadającą się do pokazania na rozmowie kwalifikacyjnej
+A C++/SQLite portfolio project focused on smart pointer usage, memory management, and clean object-oriented design.
 
 ---
 
-## Struktura katalogów (do wypełnienia samodzielnie)
+## Overview
+
+A CLI application for managing railway ticket reservations. The project models real-world relationships between domain objects, with deliberate and justified use of `unique_ptr`, `shared_ptr`, and `weak_ptr` throughout.
+
+---
+
+## Project Structure
 
 ```
-railway/
+Ticket_reservation_System/
 ├── src/
-│   ├── models/          # Station, Train, Wagon, Route, Passenger, Reservation
-│   ├── db/              # DBManager — warstwa SQLite
-│   ├── logic/           # Router (Dijkstra), ReservationService
-│   └── cli/             # Interfejs użytkownika w terminalu
-├── include/
-├── tests/
+│   ├── main.cpp
+│   ├── models/
+│   │   ├── Station.hpp
+│   │   ├── RouteStop.hpp
+│   │   ├── Route.hpp
+│   │   ├── Wagon.hpp
+│   │   ├── Train.hpp
+│   │   ├── Schedule.hpp
+│   │   ├── Passenger.hpp
+│   │   └── Reservation.hpp
+│   ├── db/
+│   │   ├── DBManager.hpp
+│   │   └── DBManager.cpp
+│   ├── logic/           # ReservationService (upcoming)
+│   └── cli/             # CLI loop (upcoming)
 ├── db/
-│   └── railway.db
-└── CMakeLists.txt
+│   └── train.db
+└── tests/               # Google Test (upcoming)
 ```
 
 ---
 
-## Model domenowy — klasy
+## Domain Model
 
 ### `Station`
-Reprezentuje stację kolejową.
-
+A railway station.
 ```
 id, name, city
-połączona z innymi stacjami przez Route
+shared across multiple routes via shared_ptr
 ```
 
-**Pytanie do przemyślenia:** Kto powinien być właścicielem listy tras wychodzących ze stacji?
-
----
-
-### `Train`
-Pociąg kursujący na trasie.
-
+### `RouteStop`
+A single stop on a route — station + timing + order.
 ```
-id, name, type (IC / TLK / EIP)
-posiada wagony (Wagon[])
-przypisany do Route
+shared_ptr<Station> station
+arrival_time, departure_time
+stop_number
 ```
-
-**Kluczowa decyzja:** `Train` jest **jedynym właścicielem** swoich wagonów.
-→ Naturalne miejsce na `unique_ptr<Wagon>`.
-
----
-
-### `Wagon`
-Wagon należący do konkretnego pociągu.
-
-```
-id, wagon_number, class (1/2), seat_count
-należy do dokładnie jednego Train
-```
-
-**Pytanie:** Czy `Wagon` potrzebuje wskaźnika z powrotem do `Train`? Jakie są konsekwencje?
-
----
+`RouteStop` is not a `Station` — it *has* a station (composition, not inheritance).
 
 ### `Route`
-Trasa przejazdu (np. Warszawa → Kraków).
-
+An ordered sequence of stops, e.g. Kraków → Katowice → Wrocław.
 ```
-id, lista stacji pośrednich, distance_km, duration_min
-może być współdzielona przez wiele pociągów
+id, name, distance_km
+vector<unique_ptr<RouteStop>> stops
+```
+`Route` owns its stops exclusively — `unique_ptr`.
+
+### `Train`
+A physical train consist (the actual coaches). Assigned to routes via `Schedule`.
+```
+id, name, type (IC / TLK / EIP)
+vector<unique_ptr<Wagon>> wagons
+```
+`Train` owns its wagons exclusively — `unique_ptr`.
+
+### `Wagon`
+A single coach belonging to one `Train`.
+```
+id, wagon_number, class (1/2), seat_count
 ```
 
-→ Naturalne miejsce na `shared_ptr<Route>`.
-
----
+### `Schedule`
+A concrete departure: which `Train` runs which `Route` on which date.
+```
+id, departure_date, departure_time
+shared_ptr<Route> route
+shared_ptr<Train> train
+```
+One train can be assigned to different routes on different days.
 
 ### `Passenger`
-Pasażer kupujący bilet.
-
+A person buying a ticket.
 ```
-id, name, email
-ma historię rezerwacji
+id, name, surname, email, phone_number
 ```
-
-**Pytanie:** Czy `Passenger` powinien trzymać `shared_ptr<Reservation>` czy `weak_ptr<Reservation>`?
-Zastanów się: kto jest właścicielem rezerwacji — pasażer czy system?
-
----
 
 ### `Reservation`
-Pojedyncza rezerwacja biletu.
-
+A single ticket reservation.
 ```
-id, passenger_id, train_id, wagon_id, seat_number, date, status
+id, seat_number, wagon_number, status
+weak_ptr<Schedule> schedule
+weak_ptr<Passenger> passenger
 ```
-
-**Pułapka cykli referencji:**
-```
-Reservation → shared_ptr<Passenger>
-Passenger   → shared_ptr<Reservation>   ← cykl! wyciek pamięci
-```
-Rozwiązanie: jedno z połączeń musi być `weak_ptr`.
+Uses `weak_ptr` to observe `Schedule` and `Passenger` without taking ownership, avoiding reference cycles.
 
 ---
 
-## Relacje i ownership — mapa
+## Smart Pointer Usage
 
-```
-                    ┌─────────────────────────────────┐
-                    │           RouteGraph             │
-                    │   shared_ptr<Station>[]          │
-                    └────────────────┬────────────────┘
-                                     │
-                              shared_ptr<Route>
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │              Train               │
-                    │   unique_ptr<Wagon>[]            │
-                    └────────────────┬────────────────┘
-                                     │
-                              shared_ptr<Reservation>
-                                     │
-                    ┌────────────────▼────────────────┐
-                    │           Reservation            │
-                    │   weak_ptr<Passenger>  ◄─────────┼── shared_ptr<Passenger>
-                    └─────────────────────────────────┘
-```
-
----
-
-## Smart pointery — podsumowanie użycia
-
-| Pointer | Gdzie | Dlaczego |
+| Pointer | Where | Why |
 |---|---|---|
-| `unique_ptr<Wagon>` | `Train` posiada wagony | Jeden właściciel, brak potrzeby współdzielenia |
-| `shared_ptr<Route>` | Wiele pociągów na tej samej trasie | Kilka obiektów potrzebuje dostępu |
-| `shared_ptr<Station>` | Graf stacji w `RouteGraph` | Stacje współdzielone między trasami |
-| `weak_ptr<Passenger>` | `Reservation` → `Passenger` | Przerywa cykl referencji |
-| raw pointer (opcjonalnie) | Iteracja po grafie | Do nauki różnicy — nigdy do ownership |
+| `unique_ptr<Wagon>` | `Train` owns wagons | Single owner, no sharing needed |
+| `unique_ptr<RouteStop>` | `Route` owns stops | Single owner, stop has no meaning outside its route |
+| `shared_ptr<Station>` | `RouteStop` references a station | Same station appears on multiple routes |
+| `shared_ptr<Route>` | `Schedule` references a route | Route can be reused across schedules |
+| `shared_ptr<Train>` | `Schedule` references a train | Train can be reused across schedules |
+| `weak_ptr<Schedule>` | `Reservation` observes schedule | No ownership — schedule lives independently |
+| `weak_ptr<Passenger>` | `Reservation` observes passenger | Breaks potential reference cycle |
 
 ---
 
-## Schemat bazy danych SQLite
+## Object Relationships
+
+```
+Station ←── shared_ptr ───── RouteStop ───── unique_ptr ──→ Route
+                                                                │
+                                                          shared_ptr
+                                                                │
+Train ──── unique_ptr ──→ Wagon                           Schedule
+  ↑                                                             │
+  └──────────── shared_ptr ───────────────────────────────────┘
+                                                                │
+                                                          weak_ptr
+                                                                │
+Passenger ←── weak_ptr ──────────────────────────────── Reservation
+```
+
+---
+
+## Database Schema
 
 ```sql
 CREATE TABLE stations (
@@ -162,127 +147,127 @@ CREATE TABLE stations (
 CREATE TABLE routes (
     id           INTEGER PRIMARY KEY,
     name         TEXT NOT NULL,
-    distance_km  INTEGER,
-    duration_min INTEGER
+    distance_km  INTEGER
 );
 
-CREATE TABLE route_stations (
-    route_id   INTEGER REFERENCES routes(id),
-    station_id INTEGER REFERENCES stations(id),
-    stop_order INTEGER NOT NULL,
-    PRIMARY KEY (route_id, station_id)
+CREATE TABLE route_stops (
+    id               INTEGER PRIMARY KEY,
+    route_id         INTEGER REFERENCES routes(id),
+    station_id       INTEGER REFERENCES stations(id),
+    stop_number      INTEGER NOT NULL,
+    arrival_time     TEXT,
+    departure_time   TEXT
 );
 
 CREATE TABLE trains (
-    id       INTEGER PRIMARY KEY,
-    name     TEXT NOT NULL,
-    type     TEXT CHECK(type IN ('IC','TLK','EIP')),
-    route_id INTEGER REFERENCES routes(id)
+    id    INTEGER PRIMARY KEY,
+    name  TEXT NOT NULL,
+    type  TEXT NOT NULL
 );
 
 CREATE TABLE wagons (
     id           INTEGER PRIMARY KEY,
     train_id     INTEGER REFERENCES trains(id),
     wagon_number INTEGER NOT NULL,
-    class        INTEGER CHECK(class IN (1,2)),
+    class        INTEGER NOT NULL,
     seat_count   INTEGER NOT NULL
 );
 
 CREATE TABLE passengers (
-    id    INTEGER PRIMARY KEY,
-    name  TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL
+    id           INTEGER PRIMARY KEY,
+    name         TEXT NOT NULL,
+    surname      TEXT NOT NULL,
+    email        TEXT UNIQUE NOT NULL,
+    phone_number TEXT
+);
+
+CREATE TABLE schedules (
+    id               INTEGER PRIMARY KEY,
+    route_id         INTEGER REFERENCES routes(id),
+    train_id         INTEGER REFERENCES trains(id),
+    departure_date   TEXT NOT NULL,
+    departure_time   TEXT NOT NULL
 );
 
 CREATE TABLE reservations (
     id           INTEGER PRIMARY KEY,
+    schedule_id  INTEGER REFERENCES schedules(id),
     passenger_id INTEGER REFERENCES passengers(id),
-    train_id     INTEGER REFERENCES trains(id),
-    wagon_id     INTEGER REFERENCES wagons(id),
+    wagon_number INTEGER NOT NULL,
     seat_number  INTEGER NOT NULL,
-    travel_date  TEXT NOT NULL,
-    status       TEXT CHECK(status IN ('active','cancelled'))
+    status       TEXT NOT NULL
 );
 ```
 
 ---
 
-## Warstwa DBManager
+## Seeded Data
 
-Klasa odpowiedzialna za całą komunikację z SQLite.
+The database is pre-loaded with:
+
+**Stations:** Kraków Główny, Katowice, Wrocław Główny, Warszawa Centralna, Gdańsk Główny
+
+**Routes:**
+- Kraków → Katowice → Wrocław (280 km)
+- Wrocław → Katowice → Kraków (280 km)
+- Warszawa → Gdańsk (340 km)
+
+**Trains:** IC 1234, IC 5678, EIP 101 (each with wagons)
+
+**Schedules:** three departures across 2025-08-01 and 2025-08-02
+
+---
+
+## DBManager
+
+Handles all SQLite communication. Uses RAII — the connection opens in the constructor and closes automatically in the destructor.
 
 ```cpp
-// Szkic interfejsu — do zaimplementowania samodzielnie
-class DBManager {
-public:
-    explicit DBManager(const std::string& db_path);
-    ~DBManager();
+DBManager db("db/train.db");
+db.initSchema();   // creates tables if they don't exist
+db.seedData();     // inserts base data (INSERT OR IGNORE)
 
-    // Przykładowe metody do przemyślenia:
-    std::vector<Station>     getAllStations();
-    std::optional<Train>     getTrainById(int id);
-    bool                     saveReservation(const Reservation& r);
-    std::vector<Reservation> getReservationsForPassenger(int passenger_id);
-
-private:
-    sqlite3* db_;   // raw pointer — SQLite API jest w C
-                    // Pytanie: czy można to opakować w unique_ptr z custom deleter?
-};
-```
-
-**Do przemyślenia:** Jak obsłużyć błędy SQLite? Wyjątki czy kody błędów?
-
----
-
-## Logika — Router (Dijkstra)
-
-Graf stacji trzymany w pamięci jako:
-```cpp
-std::unordered_map<int, std::shared_ptr<Station>> stations_;
-std::unordered_map<int, std::vector<std::weak_ptr<Route>>> adjacency_;
-//                                   ^
-//                          Pytanie: dlaczego weak_ptr tutaj ma sens?
-```
-
-Algorytm Dijkstry zwraca listę stacji pośrednich i łączny czas przejazdu.
-
----
-
-## CLI — przykładowe komendy
-
-```
-> list stations
-> search Warsaw Krakow 2025-08-01
-> book <train_id> <wagon_id> <seat> <passenger_id>
-> cancel <reservation_id>
-> history <passenger_id>
+auto stations = db.getAllStations();  // returns vector<shared_ptr<Station>>
+auto trains   = db.getAllTrains();    // returns vector<shared_ptr<Train>>
 ```
 
 ---
 
-## Etapy implementacji (sugerowana kolejność)
+## Build
 
-- [ ] **Etap 1** — Klasy modeli bez SQL, proste testy w `main.cpp`
-- [ ] **Etap 2** — DBManager + schemat SQLite, seedowanie danych testowych
-- [ ] **Etap 3** — RouteGraph + Dijkstra (tylko w pamięci)
-- [ ] **Etap 4** — ReservationService — logika rezerwacji z obsługą konfliktów miejsc
-- [ ] **Etap 5** — CLI — pętla główna, parsowanie komend
-- [ ] **Etap 6** — Testy jednostkowe (opcjonalnie: Google Test)
+```bash
+g++ -std=c++17 src/main.cpp src/db/DBManager.cpp -I src -lsqlite3 -o railway && ./railway
+```
 
----
-
-## Rzeczy warte pokazania na rozmowie
-
-- Świadomy wybór `unique_ptr` vs `shared_ptr` vs `weak_ptr` — umieć uzasadnić każdy
-- Unikanie cykli referencji przez `weak_ptr`
-- RAII w `DBManager` — zasoby zwalniane w destruktorze
-- Custom deleter dla `sqlite3*` w smart pointerze
-- Separacja warstw: modele / DB / logika / CLI
+CMake will be added later when integrating Google Test.
 
 ---
 
-## Przydatne zasoby
+## Implementation Progress
+
+- [x] Domain models with smart pointers
+- [x] DBManager — connection, schema, seed data
+- [x] Read methods: `getAllStations()`, `getAllTrains()`
+- [ ] Read methods: `getSchedules()`, `getWagonsForTrain()`
+- [ ] `ReservationService` — seat availability, booking logic
+- [ ] `saveReservation()`, `cancelReservation()`
+- [ ] CLI — main loop, command parsing
+- [ ] Unit tests with Google Test
+
+---
+
+## Key Talking Points for Interviews
+
+- Conscious choice of `unique_ptr` vs `shared_ptr` vs `weak_ptr` — able to justify each decision
+- Avoiding reference cycles with `weak_ptr` in `Reservation`
+- RAII pattern in `DBManager` — resources released in destructor
+- Composition over inheritance (`RouteStop` has a `Station`, does not extend it)
+- Clear layer separation: models / database / business logic / CLI
+
+---
+
+## Resources
 
 - [cppreference — smart pointers](https://en.cppreference.com/w/cpp/memory)
 - [SQLite C API](https://www.sqlite.org/capi3ref.html)
-- Scott Meyers, *Effective Modern C++* — rozdziały 18-22 (unique/shared/weak ptr)
+- Scott Meyers, *Effective Modern C++* — chapters 18–22
