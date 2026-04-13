@@ -19,11 +19,16 @@ int main() {
 
     ReservationService service(db);
 
-    CLI cli(db, service);
-    cli.run();
+    // CLI cli(db, service);
+    // cli.run();
 
-
-
+    db.getAllSchedulesFromStationToStation("Kraków Główny", "Wrocław Główny");
+    for (const auto& s : db.getAllSchedulesFromStationToStation("Kraków Główny", "Wrocław Główny")) {
+        std::cout << s->getDepartureDate() << " " 
+                  << s->getDepartureTime() << " | "
+                  << s->getRoute()->getName() << " | "
+                  << s->getTrain()->getName() << std::endl;
+    }
     // auto stations = db.getAllStations();
     // for (const auto& s : stations) {
     //     std::cout << s->getName() << " - " << s->getCity() << std::endl;

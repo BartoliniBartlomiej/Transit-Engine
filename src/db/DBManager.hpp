@@ -30,6 +30,8 @@ public:
     std::vector<std::unique_ptr<Wagon>> getWagonsForTrain(int train_id);
     std::vector<std::shared_ptr<Reservation>> getReservationsForPassenger(int passenger_id);
 
+    std::vector<std::shared_ptr<Schedule>> getAllSchedulesFromStationToStation(std::string from, std::string to);
+
     // reservation operations 
     bool isSeatAvailable(int schedule_id, int wagon_number, int seat_number);
     bool saveReservation(int schedule_id, int passenger_id, int wagon_number, int seat_number);
