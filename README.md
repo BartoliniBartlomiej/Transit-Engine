@@ -233,10 +233,30 @@ auto trains   = db.getAllTrains();    // returns vector<shared_ptr<Train>>
 
 ---
 
+## CLI
+
+Interactive terminal menu:
+
+```
+=== Railway Reservation System ===
+1. List schedules
+2. Make a reservation
+3. My reservations
+0. Exit
+```
+
+**List schedules** — shows all available departures with route and train info.
+
+**Make a reservation** — user picks a schedule, provides passenger ID, wagon and seat number. System checks availability before booking.
+
+**My reservations** — shows all active reservations for a given passenger ID.
+
+---
+
 ## Build
 
 ```bash
-g++ -std=c++17 src/main.cpp src/db/DBManager.cpp -I src -lsqlite3 -o railway && ./railway
+g++ -std=c++17 src/main.cpp src/db/DBManager.cpp src/logic/ReservationService.cpp src/cli/CLI.cpp -I src -lsqlite3 -o railway && ./railway
 ```
 
 CMake will be added later when integrating Google Test.
@@ -247,11 +267,14 @@ CMake will be added later when integrating Google Test.
 
 - [x] Domain models with smart pointers
 - [x] DBManager — connection, schema, seed data
-- [x] Read methods: `getAllStations()`, `getAllTrains()`
-- [ ] Read methods: `getSchedules()`, `getWagonsForTrain()`
-- [ ] `ReservationService` — seat availability, booking logic
-- [ ] `saveReservation()`, `cancelReservation()`
-- [ ] CLI — main loop, command parsing
+- [x] Read methods: `getAllStations()`, `getAllTrains()`, `getAllSchedules()`, `getWagonsForTrain()`
+- [x] `getReservationsForPassenger()`
+- [x] `ReservationService` — seat availability check + booking logic
+- [x] `saveReservation()`
+- [x] CLI — main loop, list schedules, make reservation, view reservations
+- [ ] `cancelReservation()`
+- [ ] Passenger registration via CLI
+- [ ] Input validation
 - [ ] Unit tests with Google Test
 
 ---

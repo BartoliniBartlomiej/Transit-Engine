@@ -21,4 +21,10 @@ public:
                 std::weak_ptr<Schedule> schedule, std::weak_ptr<Passenger> passenger)
         : id(id), seat_number(seat_number), wagon_number(wagon_number), status(status),
           schedule(schedule), passenger(passenger) {}
+
+    // getters
+    int getId() const { return id; }
+    int getWagonNumber() const { return wagon_number; }
+    int getSeatNumber() const { return seat_number; }
+    std::string getStatus() const { return status; }
 };

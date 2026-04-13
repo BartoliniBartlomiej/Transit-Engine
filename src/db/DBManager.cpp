@@ -1,21 +1,21 @@
 // DBManager.cpp
 
 #include "DBManager.hpp"
-#include <iostream>
+
 
 DBManager::DBManager(const std::string& db_path) {
     if (sqlite3_open(db_path.c_str(), &db_) != SQLITE_OK) {
-        std::cerr << "Nie można otworzyć bazy: " << sqlite3_errmsg(db_) << std::endl;
+        std::cerr << "Database not opened: " << sqlite3_errmsg(db_) << std::endl;
         db_ = nullptr;
     } else {
-        std::cout << "Połączono z bazą: " << db_path << std::endl;
+        std::cout << "Connected to database: " << db_path << std::endl;
     }
 }
 
 DBManager::~DBManager() {
     if (db_) {
         sqlite3_close(db_);
-        std::cout << "Zamknięto połączenie z bazą." << std::endl;
+        std::cout << "Connection to database closed." << std::endl;
     }
 }
 
@@ -77,10 +77,10 @@ void DBManager::initSchema() {
 
     char* err = nullptr;
     if (sqlite3_exec(db_, sql, nullptr, nullptr, &err) != SQLITE_OK) {
-        std::cerr << "Błąd tworzenia schematu: " << err << std::endl;
+        std::cerr << "Error creating schema: " << err << std::endl;
         sqlite3_free(err);
     } else {
-        std::cout << "Schema utworzona." << std::endl;
+        std::cout << "Schema created." << std::endl;
     }
 }
 
@@ -129,10 +129,10 @@ void DBManager::seedData() {
 
     char* err = nullptr;
     if (sqlite3_exec(db_, sql, nullptr, nullptr, &err) != SQLITE_OK) {
-        std::cerr << "Błąd seedowania: " << err << std::endl;
+        std::cerr << "Error seeding data: " << err << std::endl;
         sqlite3_free(err);
     } else {
-        std::cout << "Dane seed wgrane." << std::endl;
+        std::cout << "Seed data inserted." << std::endl;
     }
 }
 
@@ -180,4 +180,161 @@ std::vector<std::shared_ptr<Train>> DBManager::getAllTrains() {
 
     sqlite3_finalize(stmt);
     return result;
+}
+
+std::vector<std::shared_ptr<Schedule>> DBManager::getAllSchedules() {
+    std::vector<std::shared_ptr<Schedule>> result;
+
+    const char* sql = R"(SELECT s.id, s.departure_date, s.departure_time, 
+        r.id, r.name, r.distance_km,
+        t.id, t.name, t.type
+        FROM schedules s
+        JOIN routes r ON s.route_id = r.id
+        JOIN trains t ON s.train_id = t.id;
+    )";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Error:" << sqlite3_errmsg(db_) << std::endl;
+        return result;
+    }
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id          = sqlite3_column_int(stmt, 0);
+        // std::string type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        std::string departure_date = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        std::string departure_time = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        int route_id = sqlite3_column_int(stmt, 3);
+        std::string route_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+        int route_distance = sqlite3_column_int(stmt, 5);
+        int train_id = sqlite3_column_int(stmt, 6);
+        std::string train_name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 7));
+        std::string train_type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 8));
+
+        auto route = std::make_shared<Route>(route_id, route_name, route_distance);
+        auto train = std::make_shared<Train>(train_id, train_name, train_type);
+        result.push_back(std::make_shared<Schedule>(id, route, train, departure_date, departure_time));
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+std::vector<std::unique_ptr<Wagon>> DBManager::getWagonsForTrain(int train_id) {
+    std::vector<std::unique_ptr<Wagon>> result;
+
+    const char* sql = "SELECT id, wagon_number, class, seat_count FROM wagons WHERE train_id = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Error:" << sqlite3_errmsg(db_) << std::endl;
+        return result;
+    }
+
+    sqlite3_bind_int(stmt, 1, train_id);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id          = sqlite3_column_int(stmt, 0);
+        int wagon_number = sqlite3_column_int(stmt, 1);
+        int class_       = sqlite3_column_int(stmt, 2);
+        int seat_count   = sqlite3_column_int(stmt, 3);
+
+        result.push_back(std::make_unique<Wagon>(id, wagon_number, class_, seat_count));
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+// DBManager.cpp
+std::vector<std::shared_ptr<Reservation>> DBManager::getReservationsForPassenger(int passenger_id) {
+    std::vector<std::shared_ptr<Reservation>> result;
+
+    const char* sql = R"(
+        SELECT id, schedule_id, wagon_number, seat_number, status
+        FROM reservations
+        WHERE passenger_id = ?;
+    )";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Error: " << sqlite3_errmsg(db_) << std::endl;
+        return result;
+    }
+
+    sqlite3_bind_int(stmt, 1, passenger_id);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id           = sqlite3_column_int(stmt, 0);
+        int schedule_id  = sqlite3_column_int(stmt, 1);
+        int wagon_number = sqlite3_column_int(stmt, 2);
+        int seat_number  = sqlite3_column_int(stmt, 3);
+        std::string status = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 4));
+
+        // Reservation needs weak_ptr<Schedule> and weak_ptr<Passenger>
+        // at this layer we don't have them, so we store raw data only
+        result.push_back(std::make_shared<Reservation>(id, seat_number, wagon_number, status,
+                         std::weak_ptr<Schedule>(), std::weak_ptr<Passenger>()));
+    }
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+// Reservation operations
+bool DBManager::isSeatAvailable(int schedule_id, int wagon_number, int seat_number) {
+    const char* sql = R"(
+        SELECT COUNT(*) FROM reservations 
+        WHERE schedule_id = ? 
+        AND wagon_number = ? 
+        AND seat_number = ?
+        AND status = 'active';
+    )";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Error:" << sqlite3_errmsg(db_) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, schedule_id);
+    sqlite3_bind_int(stmt, 2, wagon_number);
+    sqlite3_bind_int(stmt, 3, seat_number);
+
+    bool available = false;
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        int count = sqlite3_column_int(stmt, 0);
+        available = (count == 0);
+    }
+
+    sqlite3_finalize(stmt);
+    return available;
+}
+
+bool DBManager::saveReservation(int schedule_id, int passenger_id, int wagon_number, int seat_number) {
+    const char* sql = R"(
+        INSERT INTO reservations (schedule_id, passenger_id, wagon_number, seat_number, status)
+        VALUES (?, ?, ?, ?, 'active');
+    )";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Error:" << sqlite3_errmsg(db_) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, schedule_id);
+    sqlite3_bind_int(stmt, 2, passenger_id);
+    sqlite3_bind_int(stmt, 3, wagon_number);
+    sqlite3_bind_int(stmt, 4, seat_number);
+
+    bool success = false;
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        success = true;
+    } else {
+        std::cerr << "Error saving reservation: " << sqlite3_errmsg(db_) << std::endl;
+    }
+
+    sqlite3_finalize(stmt);
+    return success;
 }

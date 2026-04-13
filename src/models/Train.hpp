@@ -20,6 +20,8 @@ public:
         wagons.push_back(std::move(wagon));
     }
 
+
+
     // getters 
     int getId() const { return id; }
     std::string getName() const { return name; }
@@ -32,4 +34,5 @@ public:
         }
         return nullptr;
     }
+    int getWagonCount() const { return wagons.size(); }
 };

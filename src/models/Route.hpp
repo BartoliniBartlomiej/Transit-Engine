@@ -22,4 +22,11 @@ public:
         stations.push_back(std::move(stop));
         std::cout << "Added stop: " << stations.back()->getStationName() << std::endl;
     }
+
+    // getters
+    int getId() const { return id; }
+    std::string getName() const { return name; }
+    int getDistanceKm() const { return distance_km; }
+    const std::vector<std::unique_ptr<RouteStop>>& getStations() const { return stations; }
+    
 };
