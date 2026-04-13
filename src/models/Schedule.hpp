@@ -23,5 +23,5 @@ public:
     std::shared_ptr<Train> getTrain() const { return train; }
     std::string getDepartureDate() const { return departure_date; }
     std::string getDepartureTime() const { return departure_time; }
-
+    
 };

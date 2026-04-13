@@ -205,7 +205,9 @@ CREATE TABLE reservations (
 
 The database is pre-loaded with:
 
-**Stations:** Kraków Główny, Katowice, Wrocław Główny, Warszawa Centralna, Gdańsk Główny
+**Stations:** Kraków Główny, Katowice, Wrocław Główny, Warszawa Centralna, Gdańsk Główny etc.
+
+![Mapa tras kolejowych](resources/map.png)
 
 **Routes:**
 - Kraków → Katowice → Wrocław (280 km)

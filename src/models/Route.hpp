@@ -18,10 +18,7 @@ public:
     Route(int id, const std::string& name, int distance_km)
         : id(id), name(name), distance_km(distance_km) {}
 
-    void addStop(std::unique_ptr<RouteStop> stop) {
-        stations.push_back(std::move(stop));
-        std::cout << "Added stop: " << stations.back()->getStationName() << std::endl;
-    }
+
 
     // getters
     int getId() const { return id; }

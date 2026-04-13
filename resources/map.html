@@ -1,0 +1,460 @@
+
+<style>
+* { box-sizing: border-box; }
+#wrap { position: relative; width: 100%; font-size: 13px; }
+canvas { display: block; width: 100%; cursor: default; }
+#controls {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+#route-select {
+  flex: 1; min-width: 0;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-secondary);
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+}
+#clear-btn {
+  font-size: 12px; padding: 6px 12px; white-space: nowrap;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-secondary);
+  background: transparent; color: var(--color-text-secondary);
+  cursor: pointer;
+}
+#clear-btn:hover { background: var(--color-background-secondary); }
+#info-panel {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: 10px 14px;
+  margin-top: 8px;
+  min-height: 52px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.8;
+}
+#info-panel strong { color: var(--color-text-primary); font-weight: 500; }
+.route-tag {
+  display: inline-block; border-radius: 4px;
+  padding: 1px 7px; margin: 2px 2px 2px 0;
+  font-size: 11px; font-weight: 500;
+}
+#legend {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-top: 8px; font-size: 11px; color: var(--color-text-secondary); align-items: center;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; }
+.leg-line { width: 22px; height: 3px; display: inline-block; border-radius: 2px; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+</style>
+
+<div id="wrap">
+  <div id="controls">
+    <select id="route-select">
+      <option value="">— wybierz trasę —</option>
+    </select>
+    <button id="clear-btn">Wyczyść</button>
+  </div>
+  <canvas id="c" height="600"></canvas>
+  <div id="info-panel">Wybierz trasę z listy lub kliknij stację / odcinek na mapie.</div>
+  <div id="legend">
+    <span style="color:var(--color-text-primary);font-weight:500;font-size:12px;">Grubość = liczba tras</span>
+    <span class="leg-item"><span class="leg-line" style="background:#378ADD;height:2px;"></span>1</span>
+    <span class="leg-item"><span class="leg-line" style="background:#1D9E75;height:4px;"></span>2–3</span>
+    <span class="leg-item"><span class="leg-line" style="background:#BA7517;height:6px;"></span>4–5</span>
+    <span class="leg-item"><span class="leg-line" style="background:#D4537E;height:9px;"></span>6+</span>
+    <span class="leg-item"><span class="leg-dot" style="background:#185FA5;"></span>stacja</span>
+  </div>
+</div>
+
+<script>
+const STATIONS = {
+  1:  { name:'Kraków Główny',      city:'Kraków',       x:0.395, y:0.820 },
+  2:  { name:'Katowice',           city:'Katowice',     x:0.290, y:0.745 },
+  3:  { name:'Wrocław Główny',     city:'Wrocław',      x:0.145, y:0.535 },
+  4:  { name:'Warszawa Centralna', city:'Warszawa',     x:0.580, y:0.355 },
+  5:  { name:'Gdańsk Główny',      city:'Gdańsk',       x:0.500, y:0.095 },
+  6:  { name:'Opole Główne',       city:'Opole',        x:0.228, y:0.635 },
+  7:  { name:'Łódź Fabryczna',     city:'Łódź',         x:0.455, y:0.430 },
+  8:  { name:'Poznań Główny',      city:'Poznań',       x:0.310, y:0.400 },
+  9:  { name:'Lublin Główny',      city:'Lublin',       x:0.672, y:0.480 },
+  10: { name:'Rzeszów Główny',     city:'Rzeszów',      x:0.590, y:0.840 },
+  11: { name:'Szczecin Główny',    city:'Szczecin',     x:0.110, y:0.270 },
+  12: { name:'Bydgoszcz Główna',   city:'Bydgoszcz',   x:0.440, y:0.220 },
+  13: { name:'Częstochowa',        city:'Częstochowa',  x:0.378, y:0.625 },
+  14: { name:'Radom',              city:'Radom',        x:0.542, y:0.502 },
+  15: { name:'Gliwice',            city:'Gliwice',      x:0.254, y:0.710 },
+  16: { name:'Białystok',          city:'Białystok',    x:0.740, y:0.275 },
+  17: { name:'Gdynia Główna',      city:'Gdynia',       x:0.510, y:0.062 },
+  18: { name:'Ustka',              city:'Ustka',        x:0.360, y:0.040 },
+  19: { name:'Zakopane',           city:'Zakopane',     x:0.370, y:0.940 },
+  20: { name:'Kołobrzeg',          city:'Kołobrzeg',    x:0.218, y:0.170 },
+  21: { name:'Świnoujście',        city:'Świnoujście',  x:0.060, y:0.175 },
+};
+
+const ROUTES = [
+  { id:1,  name:'Kraków – Wrocław',        stops:[1,2,6,3],        dist:280 },
+  { id:2,  name:'Wrocław – Kraków',        stops:[3,6,2,1],        dist:280 },
+  { id:3,  name:'Warszawa – Gdańsk',       stops:[4,12,17,5],      dist:340 },
+  { id:4,  name:'Gdańsk – Warszawa',       stops:[5,17,12,4],      dist:340 },
+  { id:5,  name:'Warszawa – Kraków',       stops:[4,14,13,1],      dist:295 },
+  { id:6,  name:'Kraków – Warszawa',       stops:[1,13,14,4],      dist:295 },
+  { id:7,  name:'Warszawa – Poznań',       stops:[4,7,8],          dist:310 },
+  { id:8,  name:'Poznań – Warszawa',       stops:[8,7,4],          dist:310 },
+  { id:9,  name:'Kraków – Rzeszów',        stops:[1,10],           dist:170 },
+  { id:10, name:'Rzeszów – Kraków',        stops:[10,1],           dist:170 },
+  { id:11, name:'Warszawa – Białystok',    stops:[4,16],           dist:195 },
+  { id:12, name:'Białystok – Warszawa',    stops:[16,4],           dist:195 },
+  { id:13, name:'Gdańsk – Szczecin',       stops:[5,17,20,11],     dist:330 },
+  { id:14, name:'Szczecin – Gdańsk',       stops:[11,20,17,5],     dist:330 },
+  { id:15, name:'Kraków – Zakopane',       stops:[1,19],           dist:90  },
+  { id:16, name:'Zakopane – Kraków',       stops:[19,1],           dist:90  },
+  { id:17, name:'Warszawa – Lublin',       stops:[4,9],            dist:170 },
+  { id:18, name:'Lublin – Warszawa',       stops:[9,4],            dist:170 },
+  { id:19, name:'Warszawa – Wrocław',      stops:[4,7,13,6,3],     dist:350 },
+  { id:20, name:'Wrocław – Warszawa',      stops:[3,6,13,7,4],     dist:350 },
+  { id:21, name:'Poznań – Wrocław',        stops:[8,3],            dist:180 },
+  { id:22, name:'Wrocław – Poznań',        stops:[3,8],            dist:180 },
+  { id:23, name:'Katowice – Warszawa',     stops:[2,13,14,4],      dist:300 },
+  { id:24, name:'Warszawa – Katowice',     stops:[4,14,13,2],      dist:300 },
+  { id:25, name:'Kraków – Gdańsk',         stops:[1,13,7,12,17,5], dist:530 },
+  { id:26, name:'Gdańsk – Kraków',         stops:[5,17,12,7,13,1], dist:530 },
+  { id:27, name:'Poznań – Gdańsk',         stops:[8,12,17,5],      dist:300 },
+  { id:28, name:'Gdańsk – Poznań',         stops:[5,17,12,8],      dist:300 },
+  { id:29, name:'Wrocław – Szczecin',      stops:[3,8,11],         dist:330 },
+  { id:30, name:'Szczecin – Wrocław',      stops:[11,8,3],         dist:330 },
+  { id:31, name:'Katowice – Wrocław',      stops:[2,15,6,3],       dist:160 },
+  { id:32, name:'Wrocław – Katowice',      stops:[3,6,15,2],       dist:160 },
+  { id:33, name:'Warszawa – Częstochowa',  stops:[4,14,13],        dist:220 },
+  { id:34, name:'Częstochowa – Warszawa',  stops:[13,14,4],        dist:220 },
+  { id:35, name:'Kraków – Lublin',         stops:[1,10,9],         dist:260 },
+  { id:36, name:'Lublin – Kraków',         stops:[9,10,1],         dist:260 },
+  { id:37, name:'Gdańsk – Białystok',      stops:[5,17,12,4,16],   dist:330 },
+  { id:38, name:'Białystok – Gdańsk',      stops:[16,4,12,17,5],   dist:330 },
+  { id:39, name:'Poznań – Szczecin',       stops:[8,11],           dist:240 },
+  { id:40, name:'Szczecin – Poznań',       stops:[11,8],           dist:240 },
+  { id:41, name:'Rzeszów – Warszawa',      stops:[10,9,4],         dist:340 },
+  { id:42, name:'Warszawa – Rzeszów',      stops:[4,9,10],         dist:340 },
+  { id:43, name:'Kraków – Katowice',       stops:[1,2],            dist:80  },
+  { id:44, name:'Katowice – Kraków',       stops:[2,1],            dist:80  },
+  { id:45, name:'Gdynia – Warszawa',       stops:[17,5,12,4],      dist:360 },
+  { id:46, name:'Warszawa – Gdynia',       stops:[4,12,5,17],      dist:360 },
+  { id:47, name:'Wrocław – Łódź',          stops:[3,6,13,7],       dist:210 },
+  { id:48, name:'Łódź – Wrocław',          stops:[7,13,6,3],       dist:210 },
+  { id:49, name:'Poznań – Bydgoszcz',      stops:[8,12],           dist:90  },
+  { id:50, name:'Bydgoszcz – Poznań',      stops:[12,8],           dist:90  },
+];
+
+const edgeRoutes = {};
+function edgeKey(a,b){ return a<b?`${a}-${b}`:`${b}-${a}`; }
+ROUTES.forEach(r=>{
+  for(let i=0;i<r.stops.length-1;i++){
+    const k=edgeKey(r.stops[i],r.stops[i+1]);
+    if(!edgeRoutes[k]) edgeRoutes[k]=[];
+    edgeRoutes[k].push(r);
+  }
+});
+
+const stationDegree = {};
+Object.keys(STATIONS).forEach(id=>{ stationDegree[id]=new Set(); });
+ROUTES.forEach(r=>{ r.stops.forEach(s=>stationDegree[s].add(r.id)); });
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, dpr;
+let selectedRoute = null;
+let hovStation = null, hovEdge = null;
+let clickStation = null, clickEdge = null;
+
+const HIGHLIGHT_COLOR = '#EF9F27';
+const HIGHLIGHT_STROKE = '#BA7517';
+
+function isDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
+function sx(x){ return x*W; }
+function sy(y){ return y*H; }
+
+function edgeColor(count, alpha){
+  if(count>=6) return `rgba(212,83,126,${alpha})`;
+  if(count>=4) return `rgba(186,117,23,${alpha})`;
+  if(count>=2) return `rgba(29,158,117,${alpha})`;
+  return `rgba(55,138,221,${alpha})`;
+}
+function edgeWidth(count){ return Math.max(1.5, Math.min(count*1.8, 11)); }
+
+function routeEdgeSet(r){
+  const s=new Set();
+  for(let i=0;i<r.stops.length-1;i++) s.add(edgeKey(r.stops[i],r.stops[i+1]));
+  return s;
+}
+
+function routeStationSet(r){ return new Set(r.stops.map(String)); }
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const dark = isDark();
+  const bgPill = dark ? 'rgba(44,44,42,0.82)' : 'rgba(255,255,255,0.88)';
+  const bgText = dark ? 'rgba(200,198,190,0.95)' : 'rgba(44,44,42,0.95)';
+  const bgTextSec = dark ? 'rgba(160,158,150,0.9)' : 'rgba(95,94,90,0.9)';
+
+  const hlEdges = selectedRoute ? routeEdgeSet(selectedRoute) : null;
+  const hlStations = selectedRoute ? routeStationSet(selectedRoute) : null;
+  const hasSelection = !!(selectedRoute || clickStation || clickEdge);
+
+  Object.keys(edgeRoutes).forEach(k=>{
+    const routes = edgeRoutes[k];
+    const [a,b] = k.split('-').map(Number);
+    const sA=STATIONS[a], sB=STATIONS[b];
+    const x1=sx(sA.x),y1=sy(sA.y),x2=sx(sB.x),y2=sy(sB.y);
+    const cnt=routes.length;
+
+    const isRouteHL = hlEdges && hlEdges.has(k);
+    const isClickEdge = clickEdge===k;
+    const isHov = hovEdge===k && !selectedRoute;
+
+    let alpha, lw, color;
+    if(isRouteHL){
+      alpha=1.0; lw=edgeWidth(cnt)+3; color=HIGHLIGHT_COLOR;
+    } else if(isClickEdge && !selectedRoute){
+      alpha=1.0; lw=edgeWidth(cnt)+2; color=edgeColor(cnt,1.0);
+    } else if(isHov){
+      alpha=0.95; lw=edgeWidth(cnt)+1; color=edgeColor(cnt,0.95);
+    } else {
+      const dim = hasSelection && !isClickEdge;
+      alpha = dim ? 0.12 : 0.55;
+      lw=edgeWidth(cnt); color=edgeColor(cnt,alpha);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+    ctx.strokeStyle=color;
+    ctx.lineWidth=lw;
+    ctx.lineCap='round';
+    ctx.stroke();
+
+    const showLabel = isRouteHL || isClickEdge || isHov || (!hasSelection);
+    if(showLabel){
+      const mx=(x1+x2)/2, my=(y1+y2)/2;
+      const label=String(cnt);
+      ctx.font=`500 ${Math.round(10+cnt*0.4)}px sans-serif`;
+      const tw=ctx.measureText(label).width;
+      const ph=13, pw=tw+10;
+      ctx.fillStyle=bgPill;
+      ctx.beginPath(); ctx.roundRect(mx-pw/2,my-ph/2,pw,ph,4); ctx.fill();
+      ctx.fillStyle=isRouteHL ? HIGHLIGHT_STROKE : edgeColor(cnt,1.0);
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(label,mx,my);
+    }
+  });
+
+  if(selectedRoute){
+    const stops=selectedRoute.stops;
+    for(let i=0;i<stops.length-1;i++){
+      const sA=STATIONS[stops[i]], sB=STATIONS[stops[i+1]];
+      const x1=sx(sA.x),y1=sy(sA.y),x2=sx(sB.x),y2=sy(sB.y);
+      const k=edgeKey(stops[i],stops[i+1]);
+      const cnt=(edgeRoutes[k]||[]).length;
+      const angle=Math.atan2(y2-y1,x2-x1);
+      const len=Math.sqrt((x2-x1)**2+(y2-y1)**2);
+      const arrowAt=0.62;
+      const ax=x1+(x2-x1)*arrowAt, ay=y1+(y2-y1)*arrowAt;
+      const as=10;
+      ctx.beginPath();
+      ctx.moveTo(ax-Math.cos(angle)*as, ay-Math.sin(angle)*as);
+      ctx.lineTo(ax+Math.cos(angle)*as, ay+Math.sin(angle)*as);
+      ctx.strokeStyle=HIGHLIGHT_COLOR;
+      ctx.lineWidth=edgeWidth(cnt)+3;
+      ctx.lineCap='round';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(ax+Math.cos(angle-0.5)*as*0.7, ay+Math.sin(angle-0.5)*as*0.7);
+      ctx.lineTo(ax+Math.cos(angle)*as, ay+Math.sin(angle)*as);
+      ctx.lineTo(ax+Math.cos(angle+0.5)*as*0.7, ay+Math.sin(angle+0.5)*as*0.7);
+      ctx.strokeStyle='#fff';
+      ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.stroke();
+    }
+  }
+
+  Object.keys(STATIONS).forEach(id=>{
+    const s=STATIONS[id];
+    const x=sx(s.x), y=sy(s.y);
+    const deg=stationDegree[id].size;
+    const r=Math.max(5,Math.min(4+deg*0.9,13));
+    const isHL = hlStations && hlStations.has(id);
+    const isClickSt = clickStation===id && !selectedRoute;
+    const isHovSt = hovStation===id && !selectedRoute;
+    const dim = hasSelection && !isHL && !isClickSt;
+
+    let fillColor, strokeColor, labelAlpha=1;
+    if(isHL){
+      fillColor=HIGHLIGHT_COLOR; strokeColor=dark?'rgba(44,44,42,1)':'#fff';
+    } else if(isClickSt||isHovSt){
+      fillColor='#185FA5'; strokeColor=dark?'rgba(44,44,42,1)':'#fff';
+    } else if(dim){
+      fillColor='rgba(24,95,165,0.18)'; strokeColor='transparent'; labelAlpha=0;
+    } else {
+      fillColor='rgba(24,95,165,0.85)'; strokeColor=dark?'rgba(44,44,42,0.9)':'rgba(255,255,255,0.9)';
+    }
+
+    ctx.beginPath();
+    ctx.arc(x,y,r+(isHL||isClickSt||isHovSt?2.5:0),0,Math.PI*2);
+    ctx.fillStyle=fillColor; ctx.fill();
+    ctx.strokeStyle=strokeColor; ctx.lineWidth=1.5; ctx.stroke();
+
+    if(labelAlpha>0){
+      const lx=x+(r+5), ly=y-2;
+      ctx.font=`${isHL||isClickSt?'500':'400'} 11px sans-serif`;
+      const label=isHL ? s.city : s.city;
+      const tw=ctx.measureText(label).width;
+      ctx.globalAlpha=labelAlpha;
+      ctx.fillStyle=bgPill;
+      ctx.fillRect(lx-1,ly-10,tw+5,14);
+      ctx.fillStyle=isHL?HIGHLIGHT_STROKE:(isClickSt||isHovSt?bgText:bgTextSec);
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText(label,lx+1,ly+1);
+      ctx.font='500 9px sans-serif';
+      ctx.fillStyle=isHL?HIGHLIGHT_STROKE:'rgba(24,95,165,0.7)';
+      ctx.fillText(String(deg),lx+1,ly+11);
+      ctx.globalAlpha=1;
+    }
+  });
+
+  if(selectedRoute){
+    selectedRoute.stops.forEach((id,i)=>{
+      const s=STATIONS[id];
+      const x=sx(s.x), y=sy(s.y);
+      const deg=stationDegree[id].size;
+      const r=Math.max(5,Math.min(4+deg*0.9,13))+2.5;
+      const label=`${i+1}. ${s.city}`;
+      const lx=x+(r+5), ly=y-2;
+      ctx.font='500 11px sans-serif';
+      const tw=ctx.measureText(label).width;
+      ctx.fillStyle=dark?'rgba(44,44,42,0.88)':'rgba(255,255,255,0.92)';
+      ctx.fillRect(lx-1,ly-10,tw+6,14);
+      ctx.fillStyle=HIGHLIGHT_STROKE;
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillText(label,lx+2,ly+1);
+    });
+  }
+}
+
+function showRouteInfo(r){
+  const panel=document.getElementById('info-panel');
+  const stopNames=r.stops.map((id,i)=>`<span class="route-tag" style="background:rgba(239,159,39,0.15);color:#854F0B;">${i+1}. ${STATIONS[id].city}</span>`).join('');
+  panel.innerHTML=`<strong>Trasa ${r.id}: ${r.name}</strong> — ${r.dist} km, ${r.stops.length} stacji<br>${stopNames}`;
+}
+
+function showEdgeInfo(k){
+  const panel=document.getElementById('info-panel');
+  const [a,b]=k.split('-').map(Number);
+  const rs=edgeRoutes[k]; const cnt=rs.length;
+  const tags=rs.map(r=>`<span class="route-tag" style="background:${edgeColor(cnt,0.12)};color:${edgeColor(cnt,1.0)};">${r.name}</span>`).join('');
+  document.getElementById('info-panel').innerHTML=`<strong>${STATIONS[a].city} ↔ ${STATIONS[b].city}</strong> — ${cnt} tras<br>${tags}`;
+}
+
+function showStationInfo(id){
+  const s=STATIONS[id];
+  const deg=stationDegree[id].size;
+  const routes=ROUTES.filter(r=>r.stops.includes(+id));
+  const tags=routes.map(r=>`<span class="route-tag" style="background:rgba(24,95,165,0.1);color:#185FA5;">${r.name}</span>`).join('');
+  document.getElementById('info-panel').innerHTML=`<strong>${s.name}</strong> — ${deg} tras<br>${tags}`;
+}
+
+const sel=document.getElementById('route-select');
+ROUTES.forEach(r=>{
+  const opt=document.createElement('option');
+  opt.value=r.id; opt.textContent=`${r.id}. ${r.name} (${r.dist} km)`;
+  sel.appendChild(opt);
+});
+
+sel.addEventListener('change',()=>{
+  const val=sel.value;
+  clickStation=null; clickEdge=null;
+  if(!val){ selectedRoute=null; document.getElementById('info-panel').textContent='Choose a route from the list or click a station/edge on the map.'; }
+  else { selectedRoute=ROUTES.find(r=>r.id==val); showRouteInfo(selectedRoute); }
+  draw();
+});
+
+document.getElementById('clear-btn').addEventListener('click',()=>{
+  selectedRoute=null; clickStation=null; clickEdge=null;
+  sel.value='';
+  document.getElementById('info-panel').textContent='Choose a route from the list or click a station/edge on the map.';
+  draw();
+});
+
+function getPos(e){
+  const rect=canvas.getBoundingClientRect();
+  return { cx:(e.clientX-rect.left)*W/rect.width, cy:(e.clientY-rect.top)*H/rect.height };
+}
+
+function hitTest(cx,cy){
+  let bestSt=null,bestD=Infinity;
+  Object.keys(STATIONS).forEach(id=>{
+    const s=STATIONS[id];
+    const dx=cx-sx(s.x),dy=cy-sy(s.y);
+    const d=Math.sqrt(dx*dx+dy*dy);
+    const r=Math.max(5,Math.min(4+stationDegree[id].size*0.9,13))+5;
+    if(d<r&&d<bestD){bestD=d;bestSt=id;}
+  });
+  if(bestSt) return {type:'station',id:bestSt};
+  let bestEd=null,bestED=Infinity;
+  Object.keys(edgeRoutes).forEach(k=>{
+    const [a,b]=k.split('-').map(Number);
+    const sA=STATIONS[a],sB=STATIONS[b];
+    const x1=sx(sA.x),y1=sy(sA.y),x2=sx(sB.x),y2=sy(sB.y);
+    const dx=x2-x1,dy=y2-y1,len2=dx*dx+dy*dy;
+    if(!len2) return;
+    const t=Math.max(0,Math.min(1,((cx-x1)*dx+(cy-y1)*dy)/len2));
+    const px=x1+t*dx,py=y1+t*dy;
+    const d=Math.sqrt((cx-px)**2+(cy-py)**2);
+    const thr=Math.max(8,edgeWidth(edgeRoutes[k].length)/2+5);
+    if(d<thr&&d<bestED){bestED=d;bestEd=k;}
+  });
+  if(bestEd) return {type:'edge',id:bestEd};
+  return null;
+}
+
+canvas.addEventListener('mousemove',e=>{
+  if(selectedRoute) return;
+  const {cx,cy}=getPos(e);
+  const hit=hitTest(cx,cy);
+  const ns=hit&&hit.type==='station'?hit.id:null;
+  const ne=hit&&hit.type==='edge'?hit.id:null;
+  if(ns!==hovStation||ne!==hovEdge){
+    hovStation=ns;hovEdge=ne;
+    canvas.style.cursor=hit?'pointer':'default';
+    draw();
+  }
+});
+
+canvas.addEventListener('click',e=>{
+  if(selectedRoute) return;
+  const {cx,cy}=getPos(e);
+  const hit=hitTest(cx,cy);
+  if(!hit){
+    clickStation=null;clickEdge=null;
+    document.getElementById('info-panel').textContent='Choose a route from the list or click a station/edge on the map.';
+    draw(); return;
+  }
+  if(hit.type==='station'){ clickStation=hit.id; clickEdge=null; showStationInfo(hit.id); }
+  else { clickEdge=hit.id; clickStation=null; showEdgeInfo(hit.id); }
+  draw();
+});
+
+canvas.addEventListener('mouseleave',()=>{ hovStation=null;hovEdge=null; if(!selectedRoute) draw(); });
+
+function resize(){
+  const rect=canvas.parentElement.getBoundingClientRect();
+  W=rect.width||640; H=Math.round(W*0.88);
+  dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  draw();
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>draw());
+window.addEventListener('resize',()=>setTimeout(resize,50));
+resize();
+</script>

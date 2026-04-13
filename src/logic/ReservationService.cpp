@@ -10,3 +10,4 @@ bool ReservationService::bookSeat(int schedule_id, int passenger_id, int wagon_n
     }
     return db_.saveReservation(schedule_id, passenger_id, wagon_number, seat_number);
 }
+

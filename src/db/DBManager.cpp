@@ -85,183 +85,8 @@ void DBManager::initSchema() {
 }
 
 void DBManager::seedData() {
-    const char* sql = R"(
-        INSERT OR IGNORE INTO stations (id, name, city) VALUES
-            (1, 'Kraków Główny', 'Kraków'),
-            (2, 'Katowice', 'Katowice'),
-            (3, 'Wrocław Główny', 'Wrocław'),
-            (4, 'Warszawa Centralna', 'Warszawa'),
-            (5, 'Gdańsk Główny', 'Gdańsk'),
-            (6, 'Opole Główne', 'Opole'),
-            (7, 'Łódź Fabryczna', 'Łódź'),
-            (8, 'Poznań Główny', 'Poznań'),
-            (9, 'Lublin Główny', 'Lublin'),
-            (10, 'Rzeszów Główny', 'Rzeszów'),
-            (11, 'Szczecin Główny', 'Szczecin'),
-            (12, 'Bydgoszcz Główna', 'Bydgoszcz'),
-            (13, 'Częstochowa', 'Częstochowa'),
-            (14, 'Radom', 'Radom'),
-            (15, 'Gliwice', 'Gliwice'),
-            (16, 'Białystok', 'Białystok'),
-            (17, 'Gdynia Główna', 'Gdynia'),
-            (18, 'Ustka', 'Ustka'),
-            (19, 'Zakopane', 'Zakopane'),
-            (20, 'Kołobrzeg', 'Kołobrzeg'),
-            (21, 'Świnoujście', 'Świnoujście');
-
-        -- Trasy
-        INSERT OR IGNORE INTO routes (id, name, distance_km) VALUES
-            (1,  'Kraków - Wrocław',           280),
-            (2,  'Wrocław - Kraków',           280),
-            (3,  'Warszawa - Gdańsk',          340),
-            (4,  'Gdańsk - Warszawa',          340),
-            (5,  'Warszawa - Kraków',          295),
-            (6,  'Kraków - Warszawa',          295),
-            (7,  'Warszawa - Poznań',          310),
-            (8,  'Poznań - Warszawa',          310),
-            (9,  'Kraków - Rzeszów',           170),
-            (10, 'Rzeszów - Kraków',           170),
-            (11, 'Warszawa - Białystok',       195),
-            (12, 'Białystok - Warszawa',       195),
-            (13, 'Gdańsk - Szczecin',          330),
-            (14, 'Szczecin - Gdańsk',          330),
-            (15, 'Kraków - Zakopane',           90),
-            (16, 'Zakopane - Kraków',           90),
-            (17, 'Warszawa - Lublin',          170),
-            (18, 'Lublin - Warszawa',          170);
-
-        -- Przystanki
-        INSERT OR IGNORE INTO route_stops (id, route_id, station_id, stop_number, arrival_time, departure_time) VALUES
-            -- Kraków - Wrocław (przez Katowice, Opole)
-            (1,  1, 1,  1, NULL,    '08:00'),
-            (2,  1, 2,  2, '08:45', '08:50'),
-            (3,  1, 6,  3, '09:40', '09:45'),
-            (4,  1, 3,  4, '10:30', NULL),
-            -- Wrocław - Kraków (przez Opole, Katowice)
-            (5,  2, 3,  1, NULL,    '11:00'),
-            (6,  2, 6,  2, '11:45', '11:50'),
-            (7,  2, 2,  3, '12:40', '12:45'),
-            (8,  2, 1,  4, '13:30', NULL),
-            -- Warszawa - Gdańsk (przez Bydgoszcz, Gdynię)
-            (9,  3, 4,  1, NULL,    '07:00'),
-            (10, 3, 12, 2, '09:00', '09:05'),
-            (11, 3, 17, 3, '09:50', '09:55'),
-            (12, 3, 5,  4, '10:10', NULL),
-            -- Gdańsk - Warszawa (przez Gdynię, Bydgoszcz)
-            (13, 4, 5,  1, NULL,    '12:00'),
-            (14, 4, 17, 2, '12:15', '12:20'),
-            (15, 4, 12, 3, '13:05', '13:10'),
-            (16, 4, 4,  4, '15:10', NULL),
-            -- Warszawa - Kraków (przez Radom, Częstochowę)
-            (17, 5, 4,  1, NULL,    '06:30'),
-            (18, 5, 14, 2, '07:30', '07:35'),
-            (19, 5, 13, 3, '08:30', '08:35'),
-            (20, 5, 1,  4, '09:30', NULL),
-            -- Kraków - Warszawa (przez Częstochowę, Radom)
-            (21, 6, 1,  1, NULL,    '10:00'),
-            (22, 6, 13, 2, '11:00', '11:05'),
-            (23, 6, 14, 3, '12:05', '12:10'),
-            (24, 6, 4,  4, '13:10', NULL),
-            -- Warszawa - Poznań (przez Łódź)
-            (25, 7, 4,  1, NULL,    '08:00'),
-            (26, 7, 7,  2, '09:10', '09:15'),
-            (27, 7, 8,  3, '10:50', NULL),
-            -- Poznań - Warszawa (przez Łódź)
-            (28, 8, 8,  1, NULL,    '11:30'),
-            (29, 8, 7,  2, '13:05', '13:10'),
-            (30, 8, 4,  3, '14:20', NULL),
-            -- Kraków - Rzeszów
-            (31, 9,  1,  1, NULL,    '07:00'),
-            (32, 9,  10, 2, '08:50', NULL),
-            -- Rzeszów - Kraków
-            (33, 10, 10, 1, NULL,    '09:30'),
-            (34, 10, 1,  2, '11:20', NULL),
-            -- Warszawa - Białystok
-            (35, 11, 4,  1, NULL,    '09:00'),
-            (36, 11, 16, 2, '11:10', NULL),
-            -- Białystok - Warszawa
-            (37, 12, 16, 1, NULL,    '13:00'),
-            (38, 12, 4,  2, '15:10', NULL),
-            -- Gdańsk - Szczecin (przez Gdynię, Kołobrzeg)
-            (39, 13, 5,  1, NULL,    '08:00'),
-            (40, 13, 17, 2, '08:15', '08:20'),
-            (41, 13, 20, 3, '10:00', '10:05'),
-            (42, 13, 11, 4, '11:30', NULL),
-            -- Szczecin - Gdańsk (przez Kołobrzeg, Gdynię)
-            (43, 14, 11, 1, NULL,    '12:00'),
-            (44, 14, 20, 2, '13:30', '13:35'),
-            (45, 14, 17, 3, '15:15', '15:20'),
-            (46, 14, 5,  4, '15:35', NULL),
-            -- Kraków - Zakopane
-            (47, 15, 1,  1, NULL,    '07:30'),
-            (48, 15, 19, 2, '09:00', NULL),
-            -- Zakopane - Kraków
-            (49, 16, 19, 1, NULL,    '10:00'),
-            (50, 16, 1,  2, '11:30', NULL),
-            -- Warszawa - Lublin
-            (51, 17, 4,  1, NULL,    '08:30'),
-            (52, 17, 9,  2, '10:20', NULL),
-            -- Lublin - Warszawa
-            (53, 18, 9,  1, NULL,    '11:00'),
-            (54, 18, 4,  2, '12:50', NULL);
-
-        -- Pociągi
-        INSERT OR IGNORE INTO trains (id, name, type) VALUES
-            (1,  'IC 1234',  'IC'),
-            (2,  'IC 5678',  'IC'),
-            (3,  'EIP 101',  'EIP'),
-            (4,  'EIP 202',  'EIP'),
-            (5,  'IC 3344',  'IC'),
-            (6,  'IC 7890',  'IC'),
-            (7,  'TLK 501',  'TLK'),
-            (8,  'TLK 502',  'TLK'),
-            (9,  'IC 4411',  'IC'),
-            (10, 'TLK 303',  'TLK');
-
-        -- Wagony
-        INSERT OR IGNORE INTO wagons (id, train_id, wagon_number, class, seat_count) VALUES
-            -- IC 1234
-            (1,  1, 1, 2, 60), (2,  1, 2, 1, 30),
-            -- IC 5678
-            (3,  2, 1, 2, 60), (4,  2, 2, 2, 60),
-            -- EIP 101
-            (5,  3, 1, 1, 45), (6,  3, 2, 1, 45),
-            -- EIP 202
-            (7,  4, 1, 1, 45), (8,  4, 2, 1, 45), (9,  4, 3, 1, 45),
-            -- IC 3344
-            (10, 5, 1, 2, 60), (11, 5, 2, 2, 60), (12, 5, 3, 1, 30),
-            -- IC 7890
-            (13, 6, 1, 2, 60), (14, 6, 2, 1, 30),
-            -- TLK 501
-            (15, 7, 1, 2, 80), (16, 7, 2, 2, 80),
-            -- TLK 502
-            (17, 8, 1, 2, 80), (18, 8, 2, 2, 80),
-            -- IC 4411
-            (19, 9, 1, 2, 60), (20, 9, 2, 1, 30),
-            -- TLK 303
-            (21, 10, 1, 2, 80), (22, 10, 2, 2, 80);
-
-        -- Rozkłady jazdy
-        INSERT OR IGNORE INTO schedules (id, route_id, train_id, departure_date, departure_time) VALUES
-            (1,  1,  1,  '2025-08-01', '08:00'),
-            (2,  2,  2,  '2025-08-01', '11:00'),
-            (3,  3,  3,  '2025-08-01', '07:00'),
-            (4,  4,  4,  '2025-08-01', '12:00'),
-            (5,  5,  5,  '2025-08-01', '06:30'),
-            (6,  6,  6,  '2025-08-01', '10:00'),
-            (7,  7,  7,  '2025-08-01', '08:00'),
-            (8,  8,  8,  '2025-08-01', '11:30'),
-            (9,  9,  9,  '2025-08-02', '07:00'),
-            (10, 10, 9,  '2025-08-02', '09:30'),
-            (11, 11, 10, '2025-08-02', '09:00'),
-            (12, 12, 10, '2025-08-02', '13:00'),
-            (13, 13, 7,  '2025-08-02', '08:00'),
-            (14, 14, 8,  '2025-08-02', '12:00'),
-            (15, 15, 1,  '2025-08-02', '07:30'),
-            (16, 16, 1,  '2025-08-02', '10:00'),
-            (17, 17, 5,  '2025-08-03', '08:30'),
-            (18, 18, 6,  '2025-08-03', '11:00');
-    )";
+    std::string _sql = loadSQL("src/db/seed.sql");
+    const char* sql = _sql.c_str();
 
     char* err = nullptr;
     if (sqlite3_exec(db_, sql, nullptr, nullptr, &err) != SQLITE_OK) {
@@ -519,4 +344,24 @@ std::vector<std::shared_ptr<Schedule>> DBManager::getAllSchedulesFromStationToSt
     } 
     sqlite3_finalize(stmt);
     return result;
+}
+
+std::string DBManager::getTrainType(int train_id) {
+    const char* sql = "SELECT type FROM trains WHERE id = ?;";
+    sqlite3_stmt* stmt;
+
+    if (sqlite3_prepare_v2(db_, sql, -1, &stmt, nullptr) != SQLITE_OK) {
+        std::cerr << "Error:" << sqlite3_errmsg(db_) << std::endl;
+        return "";
+    }
+
+    sqlite3_bind_int(stmt, 1, train_id);
+
+    std::string type = "";
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+    }
+
+    sqlite3_finalize(stmt);
+    return type;
 }
