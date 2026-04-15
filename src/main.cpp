@@ -11,11 +11,10 @@
 #include "db/DBManager.hpp"
 #include "logic/ReservationService.hpp"
 #include "cli/CLI.hpp"
+#include "utils/PriceFormatter.hpp"
 
 int main() {
     DBManager db("db/train.db");
-    db.initSchema();
-    db.seedData();
 
     ReservationService service(db);
 
@@ -23,12 +22,24 @@ int main() {
     // cli.run();
 
 
-    for (const auto& s : db.getAllSchedulesFromStationToStation("Warszawa Centralna", "Częstochowa")) {
-        std::cout << s->getDepartureDate() << " " 
-                  << s->getDepartureTime() << " | "
-                  << s->getRoute()->getName() << " | "
-                  << s->getTrain()->getName() << std::endl;
-    }
+    // for (const auto& s : db.getAllSchedulesFromStationToStation("Warszawa Centralna", "Częstochowa")) {
+    //     std::cout << s->getDepartureDate() << " " 
+    //               << s->getDepartureTime() << " | "
+    //               << s->getRoute()->getName() << " | "
+    //               << s->getTrain()->getName() << std::endl;
+    // }
+
+    // auto schedules = db.getAllSchedules();
+    // for (const auto& s : schedules) {
+    //     double price_class2 = service.calculatePrice(*s, 2);
+    //     double price_class1 = service.calculatePrice(*s, 1);
+    //     std::cout << s->getRoute()->getName() 
+    //             << " | " << s->getTrain()->getType()
+    //             << " | " << s->getRoute()->getDistanceKm() << "km"
+    //             << " | 2kl: " << formatPrice(price_class2) << " PLN"
+    //             << " | 1kl: " << formatPrice(price_class1) << " PLN"
+    //             << std::endl;
+    // }
 
     // auto stations = db.getAllStations();
     // for (const auto& s : stations) {
@@ -71,6 +82,10 @@ int main() {
 
 
     std::cout << "OK." << std::endl;
+    
+
+
+    
     
     return 0;
 }

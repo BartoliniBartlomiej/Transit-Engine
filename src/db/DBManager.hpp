@@ -18,7 +18,7 @@ private:
     sqlite3* db_;
 
 public:
-    DBManager(const std::string& db_path);
+    explicit DBManager(const std::string& dbPath = "db/train.db");
     ~DBManager();
 
     void initSchema();
@@ -32,9 +32,11 @@ public:
     std::vector<std::shared_ptr<Reservation>> getReservationsForPassenger(int passenger_id);
 
     std::vector<std::shared_ptr<Schedule>> getAllSchedulesFromStationToStation(std::string from, std::string to);
-    
+
     std::string getTrainType(int train_id);
     // reservation operations 
     bool isSeatAvailable(int schedule_id, int wagon_number, int seat_number);
+    bool isWagonAndSeatValid(int schedule_id, int wagon_number, int seat_number);
+
     bool saveReservation(int schedule_id, int passenger_id, int wagon_number, int seat_number);
 };

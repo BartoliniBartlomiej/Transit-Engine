@@ -16,7 +16,7 @@ private:
     std::string status;
     std::weak_ptr<Schedule> schedule;
     std::weak_ptr<Passenger> passenger;
-    double price;
+    double price; // TODO: calculate price based on schedule and wagon class
 public:
     Reservation(int id, int seat_number, int wagon_number, const std::string& status,
                 std::weak_ptr<Schedule> schedule, std::weak_ptr<Passenger> passenger)
@@ -26,8 +26,8 @@ public:
     // getters
     int getId() const { return id; }
     int getWagonNumber() const { return wagon_number; }
-    int getSeatNumber() const { return seat_number; }
+    int getSeatNumber() const { return seat_number; } 
     std::string getStatus() const { return status; }
     // std::shared_ptr<Schedule> getSchedule() const { return schedule.lock(); }
-    // std::shared_ptr<Passenger> getPassenger() const { return passenger.lock(); }
+    // std::shared_ptr<Passenger> getPassenger() const { return passenger.lock(); } //
 };

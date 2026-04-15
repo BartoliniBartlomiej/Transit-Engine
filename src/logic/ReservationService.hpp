@@ -4,7 +4,7 @@
 
 #include "../db/DBManager.hpp"
 
-enum PriceLevel {
+enum class TrainPriceLevel {
     TLK = 70, 
     IC = 100,
     EIP = 150
@@ -15,7 +15,9 @@ private:
     DBManager& db_;
 public:
     ReservationService(DBManager& db) : db_(db) {}
+    // ReservationService();
 
-    // double calculatePrice();
     bool bookSeat(int schedule_id, int passenger_id, int wagon_number, int seat_number);
+    
+    double calculatePrice(const Schedule& schedule, int wagon_class);
 };
