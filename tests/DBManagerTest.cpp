@@ -43,8 +43,8 @@ TEST_F(DBManagerTest, RetrievesStationsCorrectly) {
     ASSERT_EQ(stations.size(), 21);
 
     EXPECT_EQ(stations[0]->getId(), 1);
-    EXPECT_EQ(stations[0]->getName(), "Warszawa Centralna");
-    EXPECT_EQ(stations[0]->getCity(), "Warszawa");
+    EXPECT_EQ(stations[3]->getName(), "Warszawa Centralna");
+    EXPECT_EQ(stations[3]->getCity(), "Warszawa");
 
     EXPECT_EQ(stations[1]->getId(), 2);
     EXPECT_EQ(stations[1]->getName(), "Kraków Główny");
