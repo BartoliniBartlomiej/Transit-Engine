@@ -106,7 +106,8 @@ TEST(ReservationServiceTest, ShouldNotBookSeatIfNotExist) {
     ReservationService service(db);
 
     EXPECT_FALSE(service.bookSeat(1, 1, 999, 1)) << "Booking should fail for non-existent wagon"; 
-    EXPECT_FALSE(service.bookSeat(1, 1, 1, 999)) << "Booking should fail for non-existent seat"; 
+    EXPECT_FALSE(service.bookSeat(1, 1, 1, 999)) << "Booking should fail for non-existent seat";
+    EXPECT_FALSE(service.bookSeat(1, 1, 1, 0)) << "Booking should fail for seat number 0";
 }
 
 // TLK, 2-class: 200km * 0.70 * 1.0 * 0.3125 = 43.75 PLN
@@ -132,4 +133,16 @@ TEST(ReservationServiceTest, ShouldCalculatePriceForEIPFirstClass) {
     ReservationService service(db);
 
     EXPECT_EQ(service.calculatePrice(Schedule(1, std::make_shared<Route>(1, "Test Route", 200), std::make_shared<Train>(1, "Test Train", "EIP"), "2024-01-01", "12:00"), 1), 187.50);
+}
+
+TEST(ReservationServiceTest, ShouldSaveCorrectPrice) {
+    DBManager db(":memory:");
+    ReservationService service(db);
+
+    service.bookSeat(1, 1, 1, 1);
+
+    auto reservations = db.getReservationsForPassenger(1);
+    ASSERT_EQ(reservations.size(), 1);
+    // EXPECT_GT(reservations[0]->getPrice(), 0.0) << "Price should be calculated, not zero";
+    EXPECT_DOUBLE_EQ(reservations[0]->getPrice(), 87.50) << "Price should match IC 2nd class calculation";
 }

@@ -71,21 +71,18 @@ int main() {
 
     // ReservationService service(db);
 
-    // // first reservation should succeed
-    // bool r1 = service.bookSeat(1, 1, 1, 14);
-    // std::cout << "Reservation 1: " << (r1 ? "OK" : "FAILED") << std::endl;
+    // first reservation should succeed
+    bool r1 = service.bookSeat(1, 1, 1, 14);
+    std::cout << "Reservation 1: " << (r1 ? "OK" : "FAILED") << std::endl;
 
-    // // second reservation for the same seat should fail
-    // bool r2 = service.bookSeat(1, 1, 1, 14);
-    // std::cout << "Reservation 2: " << (r2 ? "OK" : "FAILED") << std::endl;
+    // second reservation for the same seat should fail
+    bool r2 = service.bookSeat(1, 2, 2, 15);
+    std::cout << "Reservation 2: " << (r2 ? "OK" : "FAILED") << std::endl;
 
 
 
     std::cout << "OK." << std::endl;
-    
 
-
-    
     
     return 0;
 }

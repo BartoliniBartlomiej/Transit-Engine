@@ -13,6 +13,7 @@
 #include "../models/Reservation.hpp"
 #include "loadSQL.hpp"
 
+
 class DBManager {
 private:
     sqlite3* db_;
@@ -39,4 +40,5 @@ public:
     bool isWagonAndSeatValid(int schedule_id, int wagon_number, int seat_number);
 
     bool saveReservation(int schedule_id, int passenger_id, int wagon_number, int seat_number);
+    bool saveReservation(int schedule_id, int passenger_id, int wagon_number, int seat_number, double price);
 };

@@ -14,6 +14,8 @@ A CLI application for managing railway ticket reservations. The project models r
 
 ```
 Ticket_reservation_System/
+├── build/
+│   └── ..
 ├── src/
 │   ├── main.cpp
 │   ├── models/
@@ -28,11 +30,20 @@ Ticket_reservation_System/
 │   ├── db/
 │   │   ├── DBManager.hpp
 │   │   └── DBManager.cpp
-│   ├── logic/           # ReservationService (upcoming)
-│   └── cli/             # CLI loop (upcoming)
+│   ├── logic/
+│   │   ├── ReservationService.hpp
+│   │   └── ReservationService.cpp
+│   └── cli/
+│       ├── CLI.hpp
+│       └── CLI.cpp
 ├── db/
 │   └── train.db
-└── tests/               # Google Test (upcoming)
+├── tests/
+│   ├── ReservationTests.cpp
+│   └── DBManagerTest.cpp
+├── CMakeLists.txt
+└── README.md
+
 ```
 
 ---
@@ -203,7 +214,7 @@ CREATE TABLE reservations (
 
 ## Seeded Data
 
-The database is pre-loaded with:
+The database is pre-loaded with example data:
 
 **Stations:** Kraków Główny, Katowice, Wrocław Główny, Warszawa Centralna, Gdańsk Główny etc.
 
@@ -213,10 +224,11 @@ The database is pre-loaded with:
 - Kraków → Katowice → Wrocław (280 km)
 - Wrocław → Katowice → Kraków (280 km)
 - Warszawa → Gdańsk (340 km)
+- etc. 
 
-**Trains:** IC 1234, IC 5678, EIP 101 (each with wagons)
+**Trains:** IC 1234, IC 5678, EIP 101, etc. (each with wagons)
 
-**Schedules:** three departures across 2025-08-01 and 2025-08-02
+**Schedules:** 50 departures across 2025-08-01 and 2025-08-04
 
 ---
 
@@ -256,12 +268,18 @@ Interactive terminal menu:
 ---
 
 ## Build
+Standard build without CMake and tests:
 
 ```bash
 g++ -std=c++17 src/main.cpp src/db/DBManager.cpp src/logic/ReservationService.cpp src/cli/CLI.cpp -I src -lsqlite3 -o railway && ./railway
 ```
 
-CMake will be added later when integrating Google Test.
+CMake build (checkout `CmakeLists.txt`):
+```bash
+cmake --build build
+./build/railway #project build
+./build/run_tests #tests build
+```
 
 ---
 
@@ -277,22 +295,6 @@ CMake will be added later when integrating Google Test.
 - [ ] `cancelReservation()`
 - [ ] Passenger registration via CLI
 - [ ] Input validation
-- [ ] Unit tests with Google Test
+- [x] Unit tests with Google Test (some have been done)
 
 ---
-
-## Key Talking Points for Interviews
-
-- Conscious choice of `unique_ptr` vs `shared_ptr` vs `weak_ptr` — able to justify each decision
-- Avoiding reference cycles with `weak_ptr` in `Reservation`
-- RAII pattern in `DBManager` — resources released in destructor
-- Composition over inheritance (`RouteStop` has a `Station`, does not extend it)
-- Clear layer separation: models / database / business logic / CLI
-
----
-
-## Resources
-
-- [cppreference — smart pointers](https://en.cppreference.com/w/cpp/memory)
-- [SQLite C API](https://www.sqlite.org/capi3ref.html)
-- Scott Meyers, *Effective Modern C++* — chapters 18–22
