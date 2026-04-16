@@ -206,7 +206,8 @@ CREATE TABLE reservations (
     passenger_id INTEGER REFERENCES passengers(id),
     wagon_number INTEGER NOT NULL,
     seat_number  INTEGER NOT NULL,
-    status       TEXT NOT NULL
+    status       TEXT NOT NULL,
+    price        DOUBLE
 );
 ```
 
